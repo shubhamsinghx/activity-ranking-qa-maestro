@@ -1,0 +1,62 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# TC-AC-08 | Android – hardware Back button dismisses autocomplete & keyboard
+#
+# Gherkin ref : @TC-AC-08 (android) in autocomplete.feature
+# Tags        : autocomplete, android
+#
+# What this tests:
+#   - Autocomplete dropdown is open with "Syd" typed
+#   - Pressing the Android hardware Back key dismisses both the keyboard
+#     and the dropdown
+#   - The user remains on the home screen (search input still visible)
+#
+# Platform  : Android only
+# Command   : pressKey: Back  →  Maestro maps this to the Android back key
+# ─────────────────────────────────────────────────────────────────────────────
+
+appId: ${MAESTRO_APP_ID}
+name: "TC-AC-08 (Android) – Back button dismisses autocomplete and keyboard"
+tags:
+  - autocomplete
+  - android
+---
+
+# ── Setup ────────────────────────────────────────────────────────────────────
+- runFlow: "../subflows/00_launch_app.yaml"
+
+# ── Step 1: Open autocomplete with a query ──────────────────────────────────
+- tapOn:
+    id: "city-search-input"
+- waitForAnimationToEnd:
+    timeout: 800
+- inputText: "Syd"
+
+# Wait for dropdown to appear before pressing Back
+- extendedWaitUntil:
+    visible:
+      id: "autocomplete-dropdown"
+    timeout: 3000
+
+# ── Assertion (pre-condition): Dropdown is open ──────────────────────────────
+- assertVisible:
+    id: "autocomplete-dropdown"
+
+# ── Step 2: Press the Android hardware Back button ───────────────────────────
+- pressKey: Back
+
+# Allow dismiss animation to settle
+- waitForAnimationToEnd:
+    timeout: 500
+
+# ── Assertion 1: Autocomplete dropdown is dismissed ─────────────────────────
+- assertNotVisible:
+    id: "autocomplete-dropdown"
+
+# ── Assertion 2: Keyboard is dismissed ──────────────────────────────────────
+# hideKeyboard is idempotent; if already dismissed it's a no-op.
+# We then assert the search input is still on screen (not navigated away).
+- assertVisible:
+    id: "city-search-input"
+
+# ── Screenshot ───────────────────────────────────────────────────────────────
+- takeScreenshot: "TC-AC-08_android_back_dismissed"

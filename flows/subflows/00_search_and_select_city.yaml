@@ -1,0 +1,54 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Subflow: 00_search_and_select_city
+#
+# Purpose : Encapsulates the full city-search → autocomplete → select flow.
+#           Reused by all activity-ranking and some edge-case test flows.
+#
+# Required env vars (pass via runFlow > env):
+#   CITY_PREFIX  – characters to type into the search field (e.g. "Par")
+#   CITY_NAME    – exact text of the autocomplete suggestion to tap
+#                  (e.g. "Paris, France")
+#
+# Locator strategy:
+#   - city-search-input  → accessibility ID (contentDescription / accessibilityIdentifier)
+#   - autocomplete-dropdown → accessibility ID on the dropdown container
+#   - CITY_NAME text    → text-based tap on the rendered suggestion item
+#
+# Async handling:
+#   - extendedWaitUntil polls for the dropdown (up to 3 s) rather than sleeping
+#   - waitForAnimationToEnd absorbs keyboard slide-in and dropdown fade-in
+# ─────────────────────────────────────────────────────────────────────────────
+
+appId: ${MAESTRO_APP_ID}
+---
+
+# Step 1 – Focus the search field.
+# Using id (accessibility ID) so the locator works on both Android and iOS.
+- tapOn:
+    id: "city-search-input"
+
+# Step 2 – Allow the keyboard animation to settle before typing.
+# Without this pause, the first character can be swallowed on some devices.
+- waitForAnimationToEnd:
+    timeout: 600
+
+# Step 3 – Type the city prefix.
+# Maestro fires proper key-down/key-up events, which triggers the app's
+# onChange listener that calls the autocomplete API.
+- inputText: "${CITY_PREFIX}"
+
+# Step 4 – Wait for the autocomplete dropdown to appear (up to 3 s).
+# Polls continuously; no fixed sleep needed.
+- extendedWaitUntil:
+    visible:
+      id: "autocomplete-dropdown"
+    timeout: 3000
+
+# Step 5 – Tap the desired suggestion by its display text.
+# The text match is exact, ensuring we don't accidentally tap a partial match.
+- tapOn:
+    text: "${CITY_NAME}"
+
+# Step 6 – Let the dropdown dismiss animation finish before the next assertion.
+- waitForAnimationToEnd:
+    timeout: 500

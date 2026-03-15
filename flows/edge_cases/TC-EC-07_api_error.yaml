@@ -1,0 +1,87 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# TC-EC-07 | Open-Meteo API 5xx error shows user-friendly message + Retry
+#
+# Gherkin ref : @TC-EC-10 in edge_cases.feature
+# Tags        : edge-cases
+#
+# What this tests:
+#   - When the API returns a 5xx error the app does NOT show a raw stack trace
+#   - A user-friendly error message is displayed
+#   - A Retry button is present
+#   - The app does not crash
+#
+# How to simulate a 5xx in automated tests:
+#   Option 1 (recommended for CI): Point the app at a mock server
+#     (e.g. WireMock, json-server) that returns 500 for the forecast endpoint.
+#     Set the base URL via environment config before the test.
+#   Option 2: Use a staging environment that has a flag to force API errors.
+#   Option 3: Run this as a manual test (see manual_test_script.md TC-10).
+#
+# This flow assumes the app is configured to hit a mock/error endpoint via
+# the MOCK_API_ERROR env var (true/false) baked into the test build.
+#
+# Without a mock server this flow documents the expected behaviour and
+# serves as a reference for manual execution.
+# ─────────────────────────────────────────────────────────────────────────────
+
+appId: ${MAESTRO_APP_ID}
+name: "TC-EC-07 – API 5xx error shows friendly message and Retry button"
+tags:
+  - edge-cases
+---
+
+# ── Setup: launch app pointing at the error-simulating backend ───────────────
+# clearState ensures no cached successful results leak into this test
+- launchApp:
+    clearState: true
+    # If the app reads a build-time flag for the API base URL, that is set
+    # at build time outside Maestro. Document the required test build here.
+
+# Wait for the home screen
+- extendedWaitUntil:
+    visible:
+      id: "city-search-input"
+    timeout: 10000
+
+# ── Step 1: Trigger a ranking request (which will hit the 5xx endpoint) ───────
+- runFlow:
+    file: "../subflows/00_search_and_select_city.yaml"
+    env:
+      CITY_PREFIX: "Vie"
+      CITY_NAME: "Vienna, Austria"
+
+# ── Step 2: Wait for the error to surface ────────────────────────────────────
+# The loading indicator appears, then disappears once the error is received
+- extendedWaitUntil:
+    visible:
+      id: "loading-indicator"
+    timeout: 5000
+
+- extendedWaitUntil:
+    notVisible:
+      id: "loading-indicator"
+    timeout: 20000
+
+# ── Assertion 1: User-friendly error message is displayed ────────────────────
+- assertVisible:
+    id: "error-message"
+
+# ── Assertion 2: Retry button is present ─────────────────────────────────────
+- assertVisible:
+    id: "retry-button"
+
+# ── Assertion 3: No raw API/stack trace text visible ─────────────────────────
+# We assert that common raw error indicators are NOT rendered to the user
+- assertNotVisible:
+    text: "500"
+- assertNotVisible:
+    text: "Internal Server Error"
+- assertNotVisible:
+    text: "stack"
+
+# ── Assertion 4: Results container is NOT shown (no partial/stale data) ──────
+- assertNotVisible:
+    id: "results-container"
+
+# ── Screenshot: API error state ───────────────────────────────────────────────
+- takeScreenshot: "TC-EC-07_api_error_friendly_message"

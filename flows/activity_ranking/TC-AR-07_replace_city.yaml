@@ -1,0 +1,71 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# TC-AR-07 | Searching for a new city replaces all previous ranking results
+#
+# Gherkin ref : @TC-AR-07 in activity_ranking.feature
+# Tags        : activity-ranking
+#
+# What this tests:
+#   - Rome, Italy results are loaded first
+#   - User clears the input and searches for Oslo, Norway
+#   - Oslo results appear and Rome results are completely gone
+#
+# Edge case caught:
+#   Stale data from City 1 showing alongside City 2's results, which would
+#   indicate missing list-reset logic in the app.
+# ─────────────────────────────────────────────────────────────────────────────
+
+appId: ${MAESTRO_APP_ID}
+name: "TC-AR-07 – New city search replaces all previous ranking results"
+tags:
+  - activity-ranking
+---
+
+# ── Setup ────────────────────────────────────────────────────────────────────
+- runFlow: "../subflows/00_launch_app.yaml"
+
+# ── Step 1: Load results for Rome ────────────────────────────────────────────
+- runFlow:
+    file: "../subflows/00_search_and_select_city.yaml"
+    env:
+      CITY_PREFIX: "Rom"
+      CITY_NAME: "Rome, Italy"
+- runFlow: "../subflows/00_wait_for_results.yaml"
+
+# Confirm Rome results are showing
+- assertVisible:
+    id: "results-container"
+
+# ── Screenshot A: Rome results loaded ────────────────────────────────────────
+- takeScreenshot: "TC-AR-07_rome_results"
+
+# ── Step 2: Clear the search field and switch to Oslo ────────────────────────
+- tapOn:
+    id: "city-search-input"
+- clearText
+- waitForAnimationToEnd:
+    timeout: 500
+
+# Now search for Oslo
+- runFlow:
+    file: "../subflows/00_search_and_select_city.yaml"
+    env:
+      CITY_PREFIX: "Osl"
+      CITY_NAME: "Oslo, Norway"
+- runFlow: "../subflows/00_wait_for_results.yaml"
+
+# ── Assertion 1: Oslo results are now showing ────────────────────────────────
+- assertVisible:
+    id: "results-container"
+
+# ── Assertion 2: The city name "Oslo" (or "Oslo, Norway") is visible ─────────
+# The app should display the selected city name somewhere in the results header
+- assertVisible:
+    text: "Oslo, Norway"
+
+# ── Assertion 3: Rome content is NOT visible anywhere on screen ──────────────
+# This catches stale-state bugs where old results are not cleared
+- assertNotVisible:
+    text: "Rome, Italy"
+
+# ── Screenshot B: Oslo results, no Rome ──────────────────────────────────────
+- takeScreenshot: "TC-AR-07_oslo_results_rome_gone"

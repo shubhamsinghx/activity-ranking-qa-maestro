@@ -1,0 +1,70 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# TC-AR-02 | Each daily result contains all four required fields
+#
+# Gherkin ref : @TC-AR-02 in activity_ranking.feature
+# Tags        : activity-ranking, smoke
+#
+# What this tests (per day card):
+#   - Date label is present and in human-readable format
+#   - Activity name is present
+#   - Rank value is present
+#   - Reasoning string is present
+#
+# Locator strategy:
+#   - id: "day-date"           → date label accessibility ID
+#   - id: "activity-name"      → activity name accessibility ID
+#   - id: "activity-rank"      → rank value accessibility ID
+#   - id: "activity-reasoning" → reasoning text accessibility ID
+#
+# Note: We assert these on the FIRST visible day card in the list.
+#       A full 7-day audit is covered by TC-AR-05 (scroll) combined with
+#       manual TC-03 for exhaustive field verification across all days.
+# ─────────────────────────────────────────────────────────────────────────────
+
+appId: ${MAESTRO_APP_ID}
+name: "TC-AR-02 – Each daily result card contains all required fields"
+tags:
+  - activity-ranking
+  - smoke
+---
+
+# ── Setup ────────────────────────────────────────────────────────────────────
+- runFlow: "../subflows/00_launch_app.yaml"
+
+# ── Step 1: Select a city and wait for results ───────────────────────────────
+- runFlow:
+    file: "../subflows/00_search_and_select_city.yaml"
+    env:
+      CITY_PREFIX: "Bar"
+      CITY_NAME: "Barcelona, Spain"
+- runFlow: "../subflows/00_wait_for_results.yaml"
+
+# ── Assertion 1: Date label is visible on the first day card ─────────────────
+- assertVisible:
+    id: "day-date"
+
+# ── Assertion 2: Activity name field is present ──────────────────────────────
+- assertVisible:
+    id: "activity-name"
+
+# ── Assertion 3: Rank value field is present ─────────────────────────────────
+- assertVisible:
+    id: "activity-rank"
+
+# ── Assertion 4: Reasoning text field is present ─────────────────────────────
+- assertVisible:
+    id: "activity-reasoning"
+
+# ── Assertion 5: All four supported activity names appear on screen ──────────
+# On the first day card all four activities should be rendered without scrolling
+- assertVisible:
+    text: "Skiing"
+- assertVisible:
+    text: "Surfing"
+- assertVisible:
+    text: "Outdoor Sightseeing"
+- assertVisible:
+    text: "Indoor Sightseeing"
+
+# ── Screenshot ───────────────────────────────────────────────────────────────
+- takeScreenshot: "TC-AR-02_required_fields_present"

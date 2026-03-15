@@ -1,0 +1,38 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Subflow: 00_wait_for_results
+#
+# Purpose : Waits for the activity ranking results container to become visible
+#           after a city has been selected.  Handles the loading-indicator
+#           transitional state without relying on fixed sleeps.
+#
+# Strategy:
+#   1. Optionally wait for the loading-indicator to appear (fast networks may
+#      skip it entirely – that is acceptable).
+#   2. Wait for the loading-indicator to disappear (up to 15 s for slow nets).
+#   3. Assert the results-container is now visible.
+#
+# Accessibility IDs used:
+#   loading-indicator  → spinner / progress bar shown during fetch
+#   results-container  → the scrollable list of 7-day day cards
+# ─────────────────────────────────────────────────────────────────────────────
+
+appId: ${MAESTRO_APP_ID}
+---
+
+# Step 1 – The loading indicator may appear very briefly on fast connections.
+# We attempt to detect it but do NOT fail if it's already gone.
+- optional:
+    - assertVisible:
+        id: "loading-indicator"
+
+# Step 2 – Wait up to 15 s for the loading indicator to disappear.
+# This covers slow real-device networks and Open-Meteo API cold starts.
+- extendedWaitUntil:
+    notVisible:
+      id: "loading-indicator"
+    timeout: 15000
+
+# Step 3 – Confirm the results container is on screen.
+# This is the hard assertion – the test fails here if results never appeared.
+- assertVisible:
+    id: "results-container"

@@ -1,0 +1,52 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# TC-AC-04 | Clearing the search input dismisses the autocomplete dropdown
+#
+# Gherkin ref : @TC-AC-04 in autocomplete.feature
+# Tags        : autocomplete
+#
+# What this tests:
+#   - Dropdown is visible after typing "Ber"
+#   - Clearing the field makes the dropdown disappear
+#   - No results are shown after clearing
+# ─────────────────────────────────────────────────────────────────────────────
+
+appId: ${MAESTRO_APP_ID}
+name: "TC-AC-04 – Clearing the search input dismisses the autocomplete dropdown"
+tags:
+  - autocomplete
+---
+
+# ── Setup ────────────────────────────────────────────────────────────────────
+- runFlow: "../subflows/00_launch_app.yaml"
+
+# ── Step 1: Type to open autocomplete ───────────────────────────────────────
+- tapOn:
+    id: "city-search-input"
+- waitForAnimationToEnd:
+    timeout: 600
+- inputText: "Ber"
+
+# Verify the dropdown is up before we clear
+- extendedWaitUntil:
+    visible:
+      id: "autocomplete-dropdown"
+    timeout: 3000
+
+# ── Step 2: Clear the search field ──────────────────────────────────────────
+# clearText targets the currently focused input element
+- clearText
+
+# Allow the UI to react (dropdown dismiss animation)
+- waitForAnimationToEnd:
+    timeout: 500
+
+# ── Assertion 1: Dropdown is gone ───────────────────────────────────────────
+- assertNotVisible:
+    id: "autocomplete-dropdown"
+
+# ── Assertion 2: No results container visible (no stale ranking shown) ───────
+- assertNotVisible:
+    id: "results-container"
+
+# ── Screenshot ───────────────────────────────────────────────────────────────
+- takeScreenshot: "TC-AC-04_dropdown_dismissed_after_clear"

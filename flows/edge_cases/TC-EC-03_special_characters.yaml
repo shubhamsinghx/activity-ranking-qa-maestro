@@ -1,0 +1,78 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# TC-EC-03 | Special characters and Unicode input handled without crash
+#
+# Gherkin ref : @TC-EC-05, @TC-EC-06 in edge_cases.feature
+# Tags        : edge-cases
+#
+# What this tests (two sub-scenarios in one flow):
+#   A) Accented characters: "São Paulo" → suggestions displayed correctly
+#   B) Non-Latin Unicode:   "東京"       → app stays stable (no crash)
+#
+# These are combined in one flow because both verify the same fundamental
+# property: the app's input layer handles non-ASCII characters gracefully.
+# ─────────────────────────────────────────────────────────────────────────────
+
+appId: ${MAESTRO_APP_ID}
+name: "TC-EC-03 – Special characters and Unicode input handled without crash"
+tags:
+  - edge-cases
+---
+
+# ── Setup ────────────────────────────────────────────────────────────────────
+- runFlow: "../subflows/00_launch_app.yaml"
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Scenario A: Accented / diacritic characters
+# ═══════════════════════════════════════════════════════════════════════════
+
+# ── Step A1: Type "São Paulo" ────────────────────────────────────────────────
+- tapOn:
+    id: "city-search-input"
+- waitForAnimationToEnd:
+    timeout: 600
+- inputText: "São Paulo"
+
+# ── Assertion A1: App has not crashed – search input is still present ────────
+- assertVisible:
+    id: "city-search-input"
+
+# ── Assertion A2: Either suggestions OR "No results found" appears ────────────
+# Both outcomes are acceptable; crash / blank screen is not.
+- extendedWaitUntil:
+    anyOf:
+      - visible:
+          text: "São Paulo"
+      - visible:
+          id: "no-results-message"
+    timeout: 4000
+
+# ── Screenshot A ─────────────────────────────────────────────────────────────
+- takeScreenshot: "TC-EC-03_accented_sao_paulo"
+
+# ── Clear for next sub-scenario ──────────────────────────────────────────────
+- clearText
+- waitForAnimationToEnd:
+    timeout: 300
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Scenario B: Non-Latin Unicode (Japanese)
+# ═══════════════════════════════════════════════════════════════════════════
+
+# ── Step B1: Type "東京" (Tokyo in Japanese) ──────────────────────────────────
+- inputText: "東京"
+
+# ── Assertion B1: App has not crashed ────────────────────────────────────────
+- assertVisible:
+    id: "city-search-input"
+
+# ── Assertion B2: Either suggestions or empty state – NOT a crash / blank ────
+- extendedWaitUntil:
+    anyOf:
+      - visible:
+          id: "autocomplete-dropdown"
+      - visible:
+          id: "no-results-message"
+    timeout: 4000
+
+# ── Screenshot B ─────────────────────────────────────────────────────────────
+- takeScreenshot: "TC-EC-03_unicode_tokyo"

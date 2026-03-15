@@ -1,0 +1,27 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Subflow: 00_launch_app
+#
+# Purpose : Cold-starts the app with a fully clean state and waits until the
+#           home screen (city search input) is ready to receive interaction.
+#
+# Used by : All test flows as the first step to guarantee a consistent baseline.
+#
+# Notes   : clearState: true wipes local storage, cached results, and any
+#           in-flight network state from a previous test run.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# The appId here targets Android. For iOS replace with the bundle ID, e.g.
+# com.example.ActivityRanking  (controlled via MAESTRO_APP_ID env var in CI)
+appId: ${MAESTRO_APP_ID}
+---
+
+# Launch the app from scratch – no residual state from previous tests
+- launchApp:
+    clearState: true
+
+# Wait up to 10 s for the city search input to become visible.
+# This confirms the home screen has fully rendered before any test step runs.
+- extendedWaitUntil:
+    visible:
+      id: "city-search-input"
+    timeout: 10000

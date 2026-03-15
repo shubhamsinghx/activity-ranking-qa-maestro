@@ -1,0 +1,57 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# TC-AR-01 | Loading indicator appears then ranking results are displayed
+#
+# Gherkin ref : @TC-AR-01 in activity_ranking.feature
+# Tags        : activity-ranking, smoke
+#
+# What this tests:
+#   - Selecting a city triggers a visible loading state
+#   - The loading indicator disappears once the API responds
+#   - The results container becomes visible with at least one day card
+#
+# Locator strategy:
+#   - id: "loading-indicator"  → spinner / progress element (accessibility ID)
+#   - id: "results-container"  → the scrollable results list
+#   - id: "day-card"           → shared accessibility ID on each day row
+# ─────────────────────────────────────────────────────────────────────────────
+
+appId: ${MAESTRO_APP_ID}
+name: "TC-AR-01 – Loading indicator then results displayed after city selection"
+tags:
+  - activity-ranking
+  - smoke
+---
+
+# ── Setup ────────────────────────────────────────────────────────────────────
+- runFlow: "../subflows/00_launch_app.yaml"
+
+# ── Step 1: Search for and select a city ─────────────────────────────────────
+- runFlow:
+    file: "../subflows/00_search_and_select_city.yaml"
+    env:
+      CITY_PREFIX: "Zur"
+      CITY_NAME: "Zurich, Switzerland"
+
+# ── Assertion 1: Loading indicator appears after selection ───────────────────
+# extendedWaitUntil catches even a brief spinner on fast connections
+- extendedWaitUntil:
+    visible:
+      id: "loading-indicator"
+    timeout: 3000
+
+# ── Screenshot A: loading state ───────────────────────────────────────────
+- takeScreenshot: "TC-AR-01_loading_state"
+
+# ── Step 2: Wait for loading to complete ─────────────────────────────────────
+- runFlow: "../subflows/00_wait_for_results.yaml"
+
+# ── Assertion 2: Results container is visible ────────────────────────────────
+- assertVisible:
+    id: "results-container"
+
+# ── Assertion 3: At least one day card is rendered ───────────────────────────
+- assertVisible:
+    id: "day-card"
+
+# ── Screenshot B: results loaded ─────────────────────────────────────────────
+- takeScreenshot: "TC-AR-01_results_loaded"

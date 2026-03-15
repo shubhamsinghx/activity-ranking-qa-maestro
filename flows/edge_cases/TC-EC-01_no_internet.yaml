@@ -1,0 +1,83 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# TC-EC-01 | No internet connection – autocomplete shows offline error
+#
+# Gherkin ref : @TC-EC-01 in edge_cases.feature
+# Tags        : edge-cases
+#
+# What this tests:
+#   - Enabling Airplane Mode prevents autocomplete API calls
+#   - Typing "London" shows an error message (not suggestions)
+#   - The app does not crash
+#   - Restoring connectivity allows normal autocomplete to resume
+#
+# Prerequisite:
+#   Real device with Airplane Mode control. Maestro's setAirplaneMode command
+#   requires the device to be connected and the test runner to have the
+#   appropriate ADB (Android) or MDM (iOS) privileges.
+#
+# Note on iOS: setAirplaneMode on iOS requires supervised mode or
+#   Maestro Cloud with appropriate permissions. On unsupervised devices,
+#   this test should be run manually per TC-08 in the manual test script.
+# ─────────────────────────────────────────────────────────────────────────────
+
+appId: ${MAESTRO_APP_ID}
+name: "TC-EC-01 – No internet: autocomplete shows offline error message"
+tags:
+  - edge-cases
+---
+
+# ── Setup: launch app while still online ─────────────────────────────────────
+- runFlow: "../subflows/00_launch_app.yaml"
+
+# ── Step 1: Enable Airplane Mode (cut network) ────────────────────────────────
+- setAirplaneMode: true
+
+# Brief pause to allow the OS to fully cut network connections
+- waitForAnimationToEnd:
+    timeout: 1500
+
+# ── Step 2: Tap the search field and type ────────────────────────────────────
+- tapOn:
+    id: "city-search-input"
+- waitForAnimationToEnd:
+    timeout: 600
+- inputText: "London"
+
+# ── Assertion 1: Offline / no-internet error message is shown ────────────────
+# App should show a banner or inline message (id: error-message)
+- extendedWaitUntil:
+    visible:
+      id: "error-message"
+    timeout: 5000
+
+- assertVisible:
+    id: "error-message"
+
+# ── Assertion 2: No autocomplete suggestions are rendered ────────────────────
+- assertNotVisible:
+    id: "autocomplete-dropdown"
+
+# ── Screenshot ───────────────────────────────────────────────────────────────
+- takeScreenshot: "TC-EC-01_offline_error"
+
+# ── Step 3: Restore connectivity ─────────────────────────────────────────────
+- setAirplaneMode: false
+- waitForAnimationToEnd:
+    timeout: 2000
+
+# ── Assertion 3: App recovers – typing again shows suggestions ───────────────
+- tapOn:
+    id: "city-search-input"
+- clearText
+- inputText: "Lon"
+
+- extendedWaitUntil:
+    visible:
+      id: "autocomplete-dropdown"
+    timeout: 5000
+
+- assertVisible:
+    id: "autocomplete-dropdown"
+
+# ── Screenshot ───────────────────────────────────────────────────────────────
+- takeScreenshot: "TC-EC-01_recovered_after_reconnect"

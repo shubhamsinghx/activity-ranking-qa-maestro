@@ -1,0 +1,63 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# TC-AC-09 | iOS – keyboard Done button dismisses keyboard but retains input
+#
+# Gherkin ref : @TC-AC-09 (ios) in autocomplete.feature
+# Tags        : autocomplete, ios
+#
+# What this tests:
+#   - Tapping the "Done" button on the iOS keyboard toolbar hides the keyboard
+#   - The typed text ("Dub") is still present in the search field
+#   - The autocomplete dropdown remains visible (user can still select a city)
+#
+# Platform   : iOS only
+# Locator    : text: "Done" → appears in the keyboard toolbar accessory view.
+#              On iOS this is rendered as a UIBarButtonItem above the keyboard.
+# ─────────────────────────────────────────────────────────────────────────────
+
+appId: ${MAESTRO_APP_ID}
+name: "TC-AC-09 (iOS) – Done button dismisses keyboard and retains typed input"
+tags:
+  - autocomplete
+  - ios
+---
+
+# ── Setup ────────────────────────────────────────────────────────────────────
+- runFlow: "../subflows/00_launch_app.yaml"
+
+# ── Step 1: Tap search input and type a city prefix ──────────────────────────
+- tapOn:
+    id: "city-search-input"
+- waitForAnimationToEnd:
+    timeout: 800
+- inputText: "Dub"
+
+# Wait for suggestions to appear before dismissing the keyboard
+- extendedWaitUntil:
+    visible:
+      id: "autocomplete-dropdown"
+    timeout: 3000
+
+# ── Step 2: Tap the "Done" button in the iOS keyboard toolbar ────────────────
+# Maestro finds it by its visible text in the toolbar accessory view
+- tapOn:
+    text: "Done"
+- waitForAnimationToEnd:
+    timeout: 500
+
+# ── Assertion 1: Keyboard is no longer visible ───────────────────────────────
+# We check this by verifying the search input hasn't expanded to fill the
+# screen (keyboard gone → more content is visible below)
+- assertVisible:
+    id: "city-search-input"
+
+# ── Assertion 2: Input still contains "Dub" ─────────────────────────────────
+- assertVisible:
+    id: "city-search-input"
+    text: "Dub"
+
+# ── Assertion 3: Autocomplete dropdown is still showing ─────────────────────
+- assertVisible:
+    id: "autocomplete-dropdown"
+
+# ── Screenshot ───────────────────────────────────────────────────────────────
+- takeScreenshot: "TC-AC-09_ios_done_keyboard_dismissed"

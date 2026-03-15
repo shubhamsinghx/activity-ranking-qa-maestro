@@ -1,0 +1,48 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# TC-AC-06 | No suggestions shown for unrecognised / gibberish input
+#
+# Gherkin ref : @TC-AC-06 in autocomplete.feature
+# Tags        : autocomplete
+#
+# What this tests:
+#   - Typing "xzqwk" (not a real city) shows a "No results found" empty state
+#   - No suggestion rows are rendered
+#   - The app does not crash
+# ─────────────────────────────────────────────────────────────────────────────
+
+appId: ${MAESTRO_APP_ID}
+name: "TC-AC-06 – No suggestions shown for unrecognised gibberish input"
+tags:
+  - autocomplete
+---
+
+# ── Setup ────────────────────────────────────────────────────────────────────
+- runFlow: "../subflows/00_launch_app.yaml"
+
+# ── Step 1: Type gibberish ────────────────────────────────────────────────── 
+- tapOn:
+    id: "city-search-input"
+- waitForAnimationToEnd:
+    timeout: 600
+- inputText: "xzqwk"
+
+# Allow the app time to hit the API and render the empty state
+- extendedWaitUntil:
+    visible:
+      id: "no-results-message"
+    timeout: 4000
+
+# ── Assertion 1: "No results found" message is displayed ────────────────────
+- assertVisible:
+    id: "no-results-message"
+
+# ── Assertion 2: No suggestion rows are rendered ─────────────────────────────
+- assertNotVisible:
+    id: "autocomplete-suggestion"
+
+# ── Assertion 3: App is still functional (search field is present) ───────────
+- assertVisible:
+    id: "city-search-input"
+
+# ── Screenshot ───────────────────────────────────────────────────────────────
+- takeScreenshot: "TC-AC-06_no_results_empty_state"

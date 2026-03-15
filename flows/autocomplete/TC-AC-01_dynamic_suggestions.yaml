@@ -1,0 +1,60 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# TC-AC-01 | Autocomplete suggestions appear dynamically after minimum chars
+#
+# Gherkin ref : @TC-AC-01 in autocomplete.feature
+# Tags        : autocomplete, smoke
+#
+# What this tests:
+#   - The autocomplete dropdown becomes visible once ≥ 2 characters are typed
+#   - The suggestions list includes a result for the typed prefix ("Lon")
+#   - Each suggestion renders a city name and country (e.g. "London, United Kingdom")
+#
+# Locator strategy:
+#   - id: "city-search-input"      → accessibility ID on the TextInput
+#   - id: "autocomplete-dropdown"  → accessibility ID on the dropdown container
+#   - id: "autocomplete-suggestion"→ accessibility ID shared by all suggestion rows
+#   - text: "London, United Kingdom" → exact text match for a specific suggestion
+#
+# Async handling:
+#   extendedWaitUntil polls until the dropdown appears (max 3 s)
+#   waitForAnimationToEnd absorbs keyboard slide-in before typing
+# ─────────────────────────────────────────────────────────────────────────────
+
+appId: ${MAESTRO_APP_ID}
+name: "TC-AC-01 – Autocomplete suggestions appear dynamically after minimum chars"
+tags:
+  - autocomplete
+  - smoke
+---
+
+# ── Setup ────────────────────────────────────────────────────────────────────
+# Cold-start the app; waits for the home screen to be ready
+- runFlow: "../subflows/00_launch_app.yaml"
+
+# ── Step 1: Tap the search input and wait for keyboard to settle ─────────────
+- tapOn:
+    id: "city-search-input"
+- waitForAnimationToEnd:
+    timeout: 600
+
+# ── Step 2: Type a 3-character prefix ───────────────────────────────────────
+# inputText triggers onChange/onChangeText so the autocomplete API call fires
+- inputText: "Lon"
+
+# ── Assertion 1: Dropdown becomes visible within 3 seconds ──────────────────
+- extendedWaitUntil:
+    visible:
+      id: "autocomplete-dropdown"
+    timeout: 3000
+
+# ── Assertion 2: The list contains "London, United Kingdom" ─────────────────
+- assertVisible:
+    text: "London, United Kingdom"
+
+# ── Assertion 3: At least one suggestion item is rendered ───────────────────
+# Checks the shared accessibility ID used on every suggestion row
+- assertVisible:
+    id: "autocomplete-suggestion"
+
+# ── Screenshot for evidence ─────────────────────────────────────────────────
+- takeScreenshot: "TC-AC-01_suggestions_visible"

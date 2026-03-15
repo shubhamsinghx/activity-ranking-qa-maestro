@@ -1,0 +1,71 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# TC-AR-06 | User can scroll vertically through all 7 day cards
+#
+# Gherkin ref : @TC-AR-06 in activity_ranking.feature
+# Tags        : activity-ranking
+#
+# What this tests:
+#   - The results list is scrollable
+#   - All day cards down to Day 7 can be reached by scrolling
+#   - Each day's content remains readable and not cut off mid-card
+#
+# Technique:
+#   We scroll incrementally using swipeUp and assert each day-card id as it
+#   comes into view. This simulates a real user flicking through the list.
+# ─────────────────────────────────────────────────────────────────────────────
+
+appId: ${MAESTRO_APP_ID}
+name: "TC-AR-06 – User can scroll through all 7 day cards"
+tags:
+  - activity-ranking
+---
+
+# ── Setup ────────────────────────────────────────────────────────────────────
+- runFlow: "../subflows/00_launch_app.yaml"
+
+# ── Step 1: Select a city and load results ───────────────────────────────────
+- runFlow:
+    file: "../subflows/00_search_and_select_city.yaml"
+    env:
+      CITY_PREFIX: "Mum"
+      CITY_NAME: "Mumbai, India"
+- runFlow: "../subflows/00_wait_for_results.yaml"
+
+# ── Assertion: Day 1 visible without scrolling ───────────────────────────────
+- assertVisible:
+    id: "day-1-card"
+- takeScreenshot: "TC-AR-06_day1"
+
+# ── Scroll down to Day 2 ─────────────────────────────────────────────────────
+- scrollUntilVisible:
+    element:
+      id: "day-2-card"
+    direction: DOWN
+    timeout: 5000
+- assertVisible:
+    id: "day-2-card"
+- takeScreenshot: "TC-AR-06_day2"
+
+# ── Scroll down to Day 4 ─────────────────────────────────────────────────────
+- scrollUntilVisible:
+    element:
+      id: "day-4-card"
+    direction: DOWN
+    timeout: 5000
+- assertVisible:
+    id: "day-4-card"
+- takeScreenshot: "TC-AR-06_day4"
+
+# ── Scroll down to Day 7 (last) ───────────────────────────────────────────────
+- scrollUntilVisible:
+    element:
+      id: "day-7-card"
+    direction: DOWN
+    timeout: 8000
+- assertVisible:
+    id: "day-7-card"
+- takeScreenshot: "TC-AR-06_day7_end_of_list"
+
+# ── Final assertion: No day-8-card exists ────────────────────────────────────
+- assertNotVisible:
+    id: "day-8-card"

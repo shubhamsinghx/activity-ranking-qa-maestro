@@ -1,0 +1,69 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# TC-AR-03 | All four supported activities are present for every visible day
+#
+# Gherkin ref : @TC-AR-03 in activity_ranking.feature
+# Tags        : activity-ranking, smoke
+#
+# What this tests:
+#   - Day 1 (above the fold) contains rankings for all 4 activities
+#   - Scrolling reveals Day 2; it also has all 4 activities
+#   - Pattern is representative of all 7 days
+#
+# Supported activities (must all be present per day):
+#   Skiing | Surfing | Outdoor Sightseeing | Indoor Sightseeing
+# ─────────────────────────────────────────────────────────────────────────────
+
+appId: ${MAESTRO_APP_ID}
+name: "TC-AR-03 – All four supported activities are present on each day card"
+tags:
+  - activity-ranking
+  - smoke
+---
+
+# ── Setup ────────────────────────────────────────────────────────────────────
+- runFlow: "../subflows/00_launch_app.yaml"
+
+# ── Step 1: Select a city and wait for results ───────────────────────────────
+- runFlow:
+    file: "../subflows/00_search_and_select_city.yaml"
+    env:
+      CITY_PREFIX: "Tok"
+      CITY_NAME: "Tokyo, Japan"
+- runFlow: "../subflows/00_wait_for_results.yaml"
+
+# ── Day 1 Assertions ─────────────────────────────────────────────────────────
+# All four activity names must be visible on the first rendered day card
+- assertVisible:
+    text: "Skiing"
+- assertVisible:
+    text: "Surfing"
+- assertVisible:
+    text: "Outdoor Sightseeing"
+- assertVisible:
+    text: "Indoor Sightseeing"
+
+# ── Screenshot A: Day 1 ───────────────────────────────────────────────────────
+- takeScreenshot: "TC-AR-03_day1_four_activities"
+
+# ── Scroll to Day 2 and repeat assertions ────────────────────────────────────
+# scrollUntilVisible scrolls within results-container until the next day-card
+# heading (the second date label) comes into view
+- scrollUntilVisible:
+    element:
+      id: "day-card"
+    direction: DOWN
+    timeout: 5000
+
+# After scrolling, the second day's activities must also all be present.
+# We re-assert the same four activity names.
+- assertVisible:
+    text: "Skiing"
+- assertVisible:
+    text: "Surfing"
+- assertVisible:
+    text: "Outdoor Sightseeing"
+- assertVisible:
+    text: "Indoor Sightseeing"
+
+# ── Screenshot B: Day 2 ───────────────────────────────────────────────────────
+- takeScreenshot: "TC-AR-03_day2_four_activities"

@@ -1,0 +1,66 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# TC-AR-05 | Results cover exactly the next 7 consecutive calendar days
+#
+# Gherkin ref : @TC-AR-05 in activity_ranking.feature
+# Tags        : activity-ranking
+#
+# What this tests:
+#   - The results list starts from tomorrow's date
+#   - Scrolling through the entire list reveals exactly 7 day cards
+#   - The 7th (last) day card is reachable and visible
+#
+# Strategy:
+#   We scroll to the bottom of results-container looking for the 7th day-date
+#   element. We use scrollUntilVisible with a generous timeout (10 s) to
+#   traverse the full list without knowing the exact screen height.
+# ─────────────────────────────────────────────────────────────────────────────
+
+appId: ${MAESTRO_APP_ID}
+name: "TC-AR-05 – Results cover exactly the next 7 consecutive calendar days"
+tags:
+  - activity-ranking
+---
+
+# ── Setup ────────────────────────────────────────────────────────────────────
+- runFlow: "../subflows/00_launch_app.yaml"
+
+# ── Step 1: Select a city and wait for results ───────────────────────────────
+- runFlow:
+    file: "../subflows/00_search_and_select_city.yaml"
+    env:
+      CITY_PREFIX: "Cap"
+      CITY_NAME: "Cape Town, South Africa"
+- runFlow: "../subflows/00_wait_for_results.yaml"
+
+# ── Assertion 1: Results container is visible ────────────────────────────────
+- assertVisible:
+    id: "results-container"
+
+# ── Assertion 2: First day card is visible (today + 1) ───────────────────────
+- assertVisible:
+    id: "day-card"
+
+# ── Screenshot A: Day 1 visible ───────────────────────────────────────────
+- takeScreenshot: "TC-AR-05_day1_visible"
+
+# ── Step 2: Scroll to find the 7th day card ──────────────────────────────────
+# We scroll until the element with id "day-7-card" comes into view.
+# If the app assigns a positional accessibility ID (day-1-card … day-7-card)
+# this will find it directly. If not, use the last day-date text approach.
+- scrollUntilVisible:
+    element:
+      id: "day-7-card"
+    direction: DOWN
+    timeout: 10000
+
+# ── Assertion 3: The 7th day card is now visible ─────────────────────────────
+- assertVisible:
+    id: "day-7-card"
+
+# ── Assertion 4: No 8th day card exists ──────────────────────────────────────
+# After reaching day 7 there should be no more day cards below
+- assertNotVisible:
+    id: "day-8-card"
+
+# ── Screenshot B: Day 7 visible ───────────────────────────────────────────
+- takeScreenshot: "TC-AR-05_day7_visible"

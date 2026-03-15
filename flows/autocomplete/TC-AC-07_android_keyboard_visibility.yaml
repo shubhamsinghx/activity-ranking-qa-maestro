@@ -1,0 +1,63 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# TC-AC-07 | Android – soft keyboard does not obscure autocomplete suggestions
+#
+# Gherkin ref : @TC-AC-07 (android) in autocomplete.feature
+# Tags        : autocomplete, android
+#
+# What this tests:
+#   - After tapping the input on Android, the soft keyboard appears
+#   - The autocomplete dropdown is still fully visible above the keyboard
+#   - Suggestions are scrollable when there are more than fit in view
+#
+# Platform  : Android only (tagged @android)
+# Technique : Assert the dropdown and at least one suggestion are visible
+#             while the keyboard is open.  Layout behaviour (adjustResize /
+#             adjustPan) is what the app controls; this test catches regressions.
+# ─────────────────────────────────────────────────────────────────────────────
+
+appId: ${MAESTRO_APP_ID}
+name: "TC-AC-07 (Android) – Keyboard does not obscure autocomplete dropdown"
+tags:
+  - autocomplete
+  - android
+---
+
+# ── Setup ────────────────────────────────────────────────────────────────────
+- runFlow: "../subflows/00_launch_app.yaml"
+
+# ── Step 1: Tap input – keyboard should slide up ─────────────────────────────
+- tapOn:
+    id: "city-search-input"
+- waitForAnimationToEnd:
+    timeout: 800    # keyboard animation on Android can take ~600 ms
+
+# ── Assertion 1: Search input is still visible (keyboard didn't push it off) ─
+- assertVisible:
+    id: "city-search-input"
+
+# ── Step 2: Type to open the autocomplete dropdown ───────────────────────────
+- inputText: "Tok"
+
+# ── Assertion 2: Dropdown is visible above the keyboard ─────────────────────
+- extendedWaitUntil:
+    visible:
+      id: "autocomplete-dropdown"
+    timeout: 3000
+
+# ── Assertion 3: At least one suggestion row is visible ─────────────────────
+- assertVisible:
+    id: "autocomplete-suggestion"
+
+# ── Assertion 4: "Tokyo, Japan" can be found by scrolling the dropdown ───────
+# scrollUntilVisible handles cases where there are many results above Tokyo
+- scrollUntilVisible:
+    element:
+      text: "Tokyo, Japan"
+    direction: DOWN
+    timeout: 3000
+
+- assertVisible:
+    text: "Tokyo, Japan"
+
+# ── Screenshot ───────────────────────────────────────────────────────────────
+- takeScreenshot: "TC-AC-07_android_keyboard_dropdown_visible"

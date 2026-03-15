@@ -1,0 +1,75 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# TC-EC-02 | Network drops mid-load → error shown → Retry button recovers
+#
+# Gherkin ref : @TC-EC-02 in edge_cases.feature
+# Tags        : edge-cases
+#
+# What this tests:
+#   - City selected, loading starts
+#   - Network is cut during loading (Airplane Mode ON)
+#   - App shows a network error message and a Retry button
+#   - Network is restored, user taps Retry
+#   - Results load successfully
+#
+# This is one of the most important resilience tests – it validates the app's
+# error-recovery path end-to-end.
+# ─────────────────────────────────────────────────────────────────────────────
+
+appId: ${MAESTRO_APP_ID}
+name: "TC-EC-02 – Network drop mid-load shows Retry; results load after retry"
+tags:
+  - edge-cases
+---
+
+# ── Setup ────────────────────────────────────────────────────────────────────
+- runFlow: "../subflows/00_launch_app.yaml"
+
+# ── Step 1: Select a city (starts loading) ───────────────────────────────────
+- runFlow:
+    file: "../subflows/00_search_and_select_city.yaml"
+    env:
+      CITY_PREFIX: "Par"
+      CITY_NAME: "Paris, France"
+
+# ── Step 2: Cut the network immediately after selection ───────────────────────
+# The loading indicator should be visible at this point
+- extendedWaitUntil:
+    visible:
+      id: "loading-indicator"
+    timeout: 3000
+
+- setAirplaneMode: true
+
+# ── Assertion 1: Loading indicator disappears (request failed) ───────────────
+- extendedWaitUntil:
+    notVisible:
+      id: "loading-indicator"
+    timeout: 20000
+
+# ── Assertion 2: Network error message is displayed ─────────────────────────
+- assertVisible:
+    id: "error-message"
+
+# ── Assertion 3: Retry button is present ─────────────────────────────────────
+- assertVisible:
+    id: "retry-button"
+
+# ── Screenshot A: Error state ─────────────────────────────────────────────────
+- takeScreenshot: "TC-EC-02_network_error_state"
+
+# ── Step 3: Restore network ──────────────────────────────────────────────────
+- setAirplaneMode: false
+- waitForAnimationToEnd:
+    timeout: 2000
+
+# ── Step 4: Tap Retry ────────────────────────────────────────────────────────
+- tapOn:
+    id: "retry-button"
+
+# ── Assertion 4: Results load after retry ────────────────────────────────────
+- runFlow: "../subflows/00_wait_for_results.yaml"
+- assertVisible:
+    id: "results-container"
+
+# ── Screenshot B: Recovered results ──────────────────────────────────────────
+- takeScreenshot: "TC-EC-02_results_after_retry"

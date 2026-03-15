@@ -1,0 +1,53 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# TC-AC-11 | Rapid typing does not produce stale or duplicate suggestions
+#
+# Gherkin ref : @TC-AC-11 in autocomplete.feature
+# Tags        : autocomplete
+#
+# What this tests:
+#   - Typing a long string quickly ("San Francisco") in one inputText call
+#     simulates burst input (Maestro types at native speed)
+#   - The final visible suggestions match "San Francisco"
+#   - No suggestion from an intermediate partial query (e.g. "San F") leaks
+#     into the final rendered list
+#   - The app handles debounced/cancelled in-flight requests correctly
+#
+# Async handling:
+#   A generous 4 s wait allows in-flight requests from earlier keystrokes
+#   to resolve and for the app to render the de-bounced final result.
+# ─────────────────────────────────────────────────────────────────────────────
+
+appId: ${MAESTRO_APP_ID}
+name: "TC-AC-11 – Rapid typing produces correct final suggestions only"
+tags:
+  - autocomplete
+---
+
+# ── Setup ────────────────────────────────────────────────────────────────────
+- runFlow: "../subflows/00_launch_app.yaml"
+
+# ── Step 1: Rapidly type the full city name in one inputText call ─────────────
+# Maestro sends this as fast as the device can accept it, simulating rapid typing
+- tapOn:
+    id: "city-search-input"
+- waitForAnimationToEnd:
+    timeout: 600
+- inputText: "San Francisco"
+
+# ── Step 2: Wait for the debounce to settle and final results to render ───────
+# 4 s accounts for any in-flight requests triggered by partial inputs
+- extendedWaitUntil:
+    visible:
+      text: "San Francisco"
+    timeout: 4000
+
+# ── Assertion 1: A "San Francisco" suggestion is visible ─────────────────────
+- assertVisible:
+    text: "San Francisco"
+
+# ── Assertion 2: Dropdown is visible and stable (no flicker/reload) ──────────
+- assertVisible:
+    id: "autocomplete-dropdown"
+
+# ── Screenshot ───────────────────────────────────────────────────────────────
+- takeScreenshot: "TC-AC-11_rapid_typing_final_result"

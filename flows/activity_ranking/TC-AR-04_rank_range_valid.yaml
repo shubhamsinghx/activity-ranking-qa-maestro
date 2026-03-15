@@ -1,0 +1,56 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# TC-AR-04 | All rank values fall within the valid range of 1 to 10
+#
+# Gherkin ref : @TC-AR-04 in activity_ranking.feature
+# Tags        : activity-ranking
+#
+# What this tests:
+#   - Every visible activity-rank element contains an integer between 1 and 10
+#   - Values like 0, 11, or non-numeric strings are NOT present
+#
+# Approach:
+#   Maestro's runScript executes inline JavaScript to read the text content of
+#   all activity-rank elements and validate each value falls in [1, 10].
+#   We also do a negative assertion to ensure "0" and "11" are not visible.
+#
+# Locator strategy:
+#   - id: "activity-rank"   → shared accessibility ID on every rank label
+# ─────────────────────────────────────────────────────────────────────────────
+
+appId: ${MAESTRO_APP_ID}
+name: "TC-AR-04 – All rank values are between 1 and 10 inclusive"
+tags:
+  - activity-ranking
+---
+
+# ── Setup ────────────────────────────────────────────────────────────────────
+- runFlow: "../subflows/00_launch_app.yaml"
+
+# ── Step 1: Select a city and wait for results ───────────────────────────────
+- runFlow:
+    file: "../subflows/00_search_and_select_city.yaml"
+    env:
+      CITY_PREFIX: "Den"
+      CITY_NAME: "Denver, USA"
+- runFlow: "../subflows/00_wait_for_results.yaml"
+
+# ── Assertion 1: Rank elements exist ─────────────────────────────────────────
+- assertVisible:
+    id: "activity-rank"
+
+# ── Assertion 2: Invalid rank values are NOT present ─────────────────────────
+# If the API returns 0 or values above 10, these assertions will catch it.
+# Single-digit check: "0" alone as a rank label would be invalid.
+- assertNotVisible:
+    text: "Rank: 0"
+- assertNotVisible:
+    text: "Rank: 11"
+
+# ── Assertion 3: Script-based range validation on visible rank labels ─────────
+# This JavaScript reads all rendered rank values and asserts each is 1–10.
+# The output.message is surfaced in the Maestro test report on failure.
+- runScript:
+    file: "../../scripts/validate_rank_range.js"
+
+# ── Screenshot ───────────────────────────────────────────────────────────────
+- takeScreenshot: "TC-AR-04_rank_range_valid"

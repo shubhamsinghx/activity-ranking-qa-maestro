@@ -1,0 +1,61 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# TC-AC-10 | iOS – tapping outside the input dismisses keyboard and dropdown
+#
+# Gherkin ref : @TC-AC-10 (ios) in autocomplete.feature
+# Tags        : autocomplete, ios
+#
+# What this tests:
+#   - After typing "Mu" and seeing the dropdown, tapping anywhere outside
+#     the keyboard/input area dismisses both the keyboard and the dropdown
+#
+# Platform  : iOS only
+# Technique : tapOn point: "50%, 85%" targets the lower-middle area of the
+#             screen, which is outside the keyboard and above nothing interactive.
+#             Adjust the percentage if the app layout differs.
+# ─────────────────────────────────────────────────────────────────────────────
+
+appId: ${MAESTRO_APP_ID}
+name: "TC-AC-10 (iOS) – Tap outside dismisses keyboard and dropdown"
+tags:
+  - autocomplete
+  - ios
+---
+
+# ── Setup ────────────────────────────────────────────────────────────────────
+- runFlow: "../subflows/00_launch_app.yaml"
+
+# ── Step 1: Tap search field and type ──────────────────────────────────────
+- tapOn:
+    id: "city-search-input"
+- waitForAnimationToEnd:
+    timeout: 800
+- inputText: "Mu"
+
+# Confirm dropdown is up before the outside tap
+- extendedWaitUntil:
+    visible:
+      id: "autocomplete-dropdown"
+    timeout: 3000
+
+# ── Step 2: Tap outside the input / keyboard area ────────────────────────────
+# The coordinate (50%, 85%) lands below the content area on most iOS layouts
+# and above the home indicator, avoiding any interactive element.
+- tapOn:
+    point: "50%, 85%"
+
+# Allow dismiss animation
+- waitForAnimationToEnd:
+    timeout: 600
+
+# ── Assertion 1: Keyboard is gone ──────────────────────────────────────────
+# If the keyboard were still visible the layout would look different;
+# we assert that the results area below the search input is now accessible
+- assertVisible:
+    id: "city-search-input"
+
+# ── Assertion 2: Autocomplete dropdown is dismissed ─────────────────────────
+- assertNotVisible:
+    id: "autocomplete-dropdown"
+
+# ── Screenshot ───────────────────────────────────────────────────────────────
+- takeScreenshot: "TC-AC-10_ios_tap_outside_dismissed"

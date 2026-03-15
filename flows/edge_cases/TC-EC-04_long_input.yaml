@@ -1,0 +1,104 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# TC-EC-04 | Extremely long input is truncated gracefully without crashing
+#
+# Gherkin ref : @TC-EC-07, @TC-EC-08, @TC-EC-09 in edge_cases.feature
+# Tags        : edge-cases
+#
+# What this tests (3 sub-scenarios):
+#   A) 200-character input → field truncates, no crash
+#   B) SQL injection string → "No results found", no crash, no DB error exposed
+#   C) XSS script tag       → "No results found", no alert, no HTML rendered
+#
+# These are combined because they all test the same security/robustness
+# surface: the app's handling of adversarial or boundary text input.
+# ─────────────────────────────────────────────────────────────────────────────
+
+appId: ${MAESTRO_APP_ID}
+name: "TC-EC-04 – Long input and injection strings handled safely"
+tags:
+  - edge-cases
+---
+
+# ── Setup ────────────────────────────────────────────────────────────────────
+- runFlow: "../subflows/00_launch_app.yaml"
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Scenario A: 200-character input
+# ═══════════════════════════════════════════════════════════════════════════
+
+- tapOn:
+    id: "city-search-input"
+- waitForAnimationToEnd:
+    timeout: 600
+
+# Type a 200-character string (simulates paste of an extremely long value)
+- inputText: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+
+# ── Assertion A: App is still alive and responsive ──────────────────────────
+- assertVisible:
+    id: "city-search-input"
+
+# ── Screenshot A ─────────────────────────────────────────────────────────────
+- takeScreenshot: "TC-EC-04_long_input_no_crash"
+
+# ── Clear for next scenario ──────────────────────────────────────────────────
+- clearText
+- waitForAnimationToEnd:
+    timeout: 300
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Scenario B: SQL injection
+# ═══════════════════════════════════════════════════════════════════════════
+
+- inputText: "'; DROP TABLE cities; --"
+
+# Wait for the app to process and return a result
+- extendedWaitUntil:
+    anyOf:
+      - visible:
+          id: "no-results-message"
+      - visible:
+          text: "No results found"
+    timeout: 4000
+
+# ── Assertion B1: "No results found" state shown ─────────────────────────────
+- assertVisible:
+    id: "no-results-message"
+
+# ── Assertion B2: No crash; search field still present ───────────────────────
+- assertVisible:
+    id: "city-search-input"
+
+# ── Screenshot B ─────────────────────────────────────────────────────────────
+- takeScreenshot: "TC-EC-04_sql_injection_handled"
+
+# ── Clear for next scenario ──────────────────────────────────────────────────
+- clearText
+- waitForAnimationToEnd:
+    timeout: 300
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Scenario C: XSS / script injection
+# ═══════════════════════════════════════════════════════════════════════════
+
+- inputText: "<script>alert('xss')</script>"
+
+# ── Assertion C1: No JavaScript alert appears (screen remains the home screen)
+- assertVisible:
+    id: "city-search-input"
+
+# ── Assertion C2: No results shown (empty state or no-results message) ───────
+- extendedWaitUntil:
+    anyOf:
+      - visible:
+          id: "no-results-message"
+      - notVisible:
+          id: "autocomplete-suggestion"
+    timeout: 4000
+
+# ── Assertion C3: Search input is still stable ───────────────────────────────
+- assertVisible:
+    id: "city-search-input"
+
+# ── Screenshot C ─────────────────────────────────────────────────────────────
+- takeScreenshot: "TC-EC-04_xss_injection_handled"

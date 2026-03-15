@@ -1,0 +1,61 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# TC-AC-02 | Suggestions refine progressively as more characters are typed
+#
+# Gherkin ref : @TC-AC-02 in autocomplete.feature
+# Tags        : autocomplete, smoke
+#
+# What this tests:
+#   - Typing "Lo" shows multiple city suggestions
+#   - Continuing to type "ndo" narrows the list
+#   - "London, United Kingdom" becomes the top visible suggestion
+#
+# Locator strategy:
+#   - id: "city-search-input"       → the text field (accessibility ID)
+#   - id: "autocomplete-dropdown"   → the dropdown wrapper
+#   - text: "London, United Kingdom"→ exact text of the expected top result
+# ─────────────────────────────────────────────────────────────────────────────
+
+appId: ${MAESTRO_APP_ID}
+name: "TC-AC-02 – Suggestions refine progressively with additional characters"
+tags:
+  - autocomplete
+  - smoke
+---
+
+# ── Setup ────────────────────────────────────────────────────────────────────
+- runFlow: "../subflows/00_launch_app.yaml"
+
+# ── Step 1: Type a 2-character prefix – should produce multiple suggestions ──
+- tapOn:
+    id: "city-search-input"
+- waitForAnimationToEnd:
+    timeout: 600
+- inputText: "Lo"
+
+# Assertion: dropdown is visible with multiple results
+- extendedWaitUntil:
+    visible:
+      id: "autocomplete-dropdown"
+    timeout: 3000
+
+# ── Screenshot A: broad suggestions ─────────────────────────────────────────
+- takeScreenshot: "TC-AC-02_broad_suggestions"
+
+# ── Step 2: Continue typing to form "Londo" ──────────────────────────────────
+# inputText appends to whatever is already in the field
+- inputText: "ndo"
+
+# Wait for the list to re-render with the narrowed results
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# ── Assertion: "London, United Kingdom" is visible ──────────────────────────
+# If the app debounces API calls, the list may briefly clear – extendedWaitUntil
+# keeps polling rather than failing immediately
+- extendedWaitUntil:
+    visible:
+      text: "London, United Kingdom"
+    timeout: 3000
+
+# ── Screenshot B: refined suggestions ───────────────────────────────────────
+- takeScreenshot: "TC-AC-02_refined_suggestions"

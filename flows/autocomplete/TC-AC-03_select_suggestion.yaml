@@ -1,0 +1,70 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# TC-AC-03 | Selecting a suggestion populates input and triggers ranking
+#
+# Gherkin ref : @TC-AC-03 in autocomplete.feature
+# Tags        : autocomplete, smoke
+#
+# What this tests:
+#   - Tapping "Paris, France" from the dropdown fills the search field
+#   - The autocomplete dropdown is dismissed after selection
+#   - A loading indicator appears, confirming the 7-day ranking request fired
+#
+# Locator strategy:
+#   - id: "city-search-input"     → text field (accessibility ID)
+#   - text: "Paris, France"       → exact text match on suggestion row
+#   - id: "autocomplete-dropdown" → dropdown container (must disappear)
+#   - id: "loading-indicator"     → spinner confirming API call was triggered
+# ─────────────────────────────────────────────────────────────────────────────
+
+appId: ${MAESTRO_APP_ID}
+name: "TC-AC-03 – Selecting a suggestion populates input and triggers ranking"
+tags:
+  - autocomplete
+  - smoke
+---
+
+# ── Setup ────────────────────────────────────────────────────────────────────
+- runFlow: "../subflows/00_launch_app.yaml"
+
+# ── Step 1: Type prefix to trigger autocomplete ──────────────────────────────
+- tapOn:
+    id: "city-search-input"
+- waitForAnimationToEnd:
+    timeout: 600
+- inputText: "Par"
+
+# Wait for dropdown to appear
+- extendedWaitUntil:
+    visible:
+      id: "autocomplete-dropdown"
+    timeout: 3000
+
+# ── Assertion 1: "Paris, France" suggestion is in the list ───────────────────
+- assertVisible:
+    text: "Paris, France"
+
+# ── Step 2: Tap the suggestion ───────────────────────────────────────────────
+- tapOn:
+    text: "Paris, France"
+- waitForAnimationToEnd:
+    timeout: 500
+
+# ── Assertion 2: Input field is populated with the selected city ─────────────
+# The field value should now read "Paris, France"
+- assertVisible:
+    id: "city-search-input"
+    text: "Paris, France"
+
+# ── Assertion 3: Autocomplete dropdown is dismissed ──────────────────────────
+- assertNotVisible:
+    id: "autocomplete-dropdown"
+
+# ── Assertion 4: Loading indicator appears → ranking request was triggered ───
+# extendedWaitUntil catches it even on fast connections where it's brief
+- extendedWaitUntil:
+    visible:
+      id: "loading-indicator"
+    timeout: 3000
+
+# ── Screenshot ───────────────────────────────────────────────────────────────
+- takeScreenshot: "TC-AC-03_loading_triggered"

@@ -1,0 +1,76 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# TC-EC-05 | Screen rotation portrait → landscape preserves ranking results
+#
+# Gherkin ref : @TC-EC-12 in edge_cases.feature
+# Tags        : edge-cases
+#
+# What this tests:
+#   - Results are visible in portrait
+#   - Device rotates to landscape
+#   - Results remain fully visible (no data loss, no blank screen)
+#   - Device rotates back to portrait
+#   - Results still correct (no accidental refresh triggered)
+#
+# Maestro command: setOrientation (Landscape | Portrait)
+#   This maps to screen rotation on the connected device/emulator.
+# ─────────────────────────────────────────────────────────────────────────────
+
+appId: ${MAESTRO_APP_ID}
+name: "TC-EC-05 – Screen rotation preserves activity ranking results"
+tags:
+  - edge-cases
+---
+
+# ── Setup ────────────────────────────────────────────────────────────────────
+- runFlow: "../subflows/00_launch_app.yaml"
+
+# ── Step 1: Load ranking results in portrait ──────────────────────────────────
+- runFlow:
+    file: "../subflows/00_search_and_select_city.yaml"
+    env:
+      CITY_PREFIX: "Syd"
+      CITY_NAME: "Sydney, Australia"
+- runFlow: "../subflows/00_wait_for_results.yaml"
+
+# ── Assertion 1: Results visible in portrait ─────────────────────────────────
+- assertVisible:
+    id: "results-container"
+- assertVisible:
+    id: "day-card"
+
+# ── Screenshot A: Portrait ────────────────────────────────────────────────────
+- takeScreenshot: "TC-EC-05_portrait_results"
+
+# ── Step 2: Rotate to landscape ──────────────────────────────────────────────
+- setOrientation: Landscape
+- waitForAnimationToEnd:
+    timeout: 1000    # layout reflow after rotation
+
+# ── Assertion 2: Results container still visible in landscape ────────────────
+- assertVisible:
+    id: "results-container"
+
+# ── Assertion 3: At least one day card still rendered ────────────────────────
+- assertVisible:
+    id: "day-card"
+
+# ── Assertion 4: Loading indicator is NOT visible (no unintended reload) ─────
+- assertNotVisible:
+    id: "loading-indicator"
+
+# ── Screenshot B: Landscape ────────────────────────────────────────────────
+- takeScreenshot: "TC-EC-05_landscape_results"
+
+# ── Step 3: Rotate back to portrait ──────────────────────────────────────────
+- setOrientation: Portrait
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# ── Assertion 5: Results still intact in portrait ────────────────────────────
+- assertVisible:
+    id: "results-container"
+- assertVisible:
+    id: "day-card"
+
+# ── Screenshot C: Back to portrait ─────────────────────────────────────────
+- takeScreenshot: "TC-EC-05_back_to_portrait"

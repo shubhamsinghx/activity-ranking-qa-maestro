@@ -1,0 +1,26 @@
+# ── Maestro run artefacts ─────────────────────────────────────────────────────
+# Screenshots captured during test runs
+screenshots/
+
+# JUnit XML and HTML reports emitted by run_tests.sh / CI
+reports/
+*.xml
+
+# Maestro cloud / local session files
+.maestro/
+
+# ── macOS ─────────────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+# ── IDEs ──────────────────────────────────────────────────────────────────────
+.idea/
+*.iml
+.vscode/
+
+# ── Node (validate_rank_range.js dev environment, if any) ─────────────────────
+node_modules/
+npm-debug.log*

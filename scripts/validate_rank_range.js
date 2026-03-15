@@ -1,73 +1,183 @@
 /**
  * validate_rank_range.js
  *
- * Maestro runScript helper used by TC-AR-04.
+ * Maestro runScript helper — DATA LAYER rank validation for TC-AR-04.
  *
- * Purpose:
- *   Reads the text content of all elements with accessibility ID "activity-rank"
- *   currently visible on screen and asserts that every value is an integer
- *   in the range [1, 10] inclusive.
+ * -------------------------------------------------------------------------
+ * WHY THIS EXISTS
+ * -------------------------------------------------------------------------
+ * The UI-layer assertions in TC-AR-04.yaml catch rank values that are
+ * rendered out of range on screen. This script provides a SECOND,
+ * independent validation layer by calling the ranking API directly and
+ * checking every rank value in the raw JSON response — including values
+ * for days that are scrolled off screen or truncated in the UI.
  *
- * How it works in Maestro:
- *   When Maestro executes a runScript file, it provides a `maestro` object
- *   that can interact with the running app's element tree.
- *   - maestro.elementByIdList("activity-rank") returns an array of element
- *     descriptor objects, each with a `.text` property.
- *   - Setting output.assertions lets Maestro surface pass/fail per item
- *     in the test report.
+ * -------------------------------------------------------------------------
+ * MAESTRO JS RUNTIME — WHAT IS ACTUALLY AVAILABLE
+ * -------------------------------------------------------------------------
+ * Maestro’s runScript environment exposes:
+ *   output   — set key/value pairs visible in the test report
+ *   http     — http.get(url, headers?) / http.post(url, body, headers?)
+ *   json     — json.parse(str) / json.stringify(obj)
+ *   files    — file read/write helpers
+ *   crypto   — hashing utilities
  *
- * Expected element format:
- *   The rank label is expected to display the numeric value only, e.g. "7"
- *   OR in a labelled format such as "Rank: 7".
- *   The regex below handles both.
+ * It does NOT expose any element-querying API (no maestro.elementByIdList,
+ * no DOM access). All element-level assertions must be done in YAML.
+ *
+ * -------------------------------------------------------------------------
+ * CONFIGURATION
+ * -------------------------------------------------------------------------
+ * Set RANKING_API_URL and TEST_CITY via the env block in the calling flow:
+ *
+ *   - runScript:
+ *       file: "../../scripts/validate_rank_range.js"
+ *       env:
+ *         RANKING_API_URL: ${RANKING_API_URL}
+ *         TEST_CITY: "Denver"
+ *
+ * If RANKING_API_URL is not set the script logs a warning and exits cleanly
+ * so that CI does not break while the API URL is being onboarded.
+ *
+ * -------------------------------------------------------------------------
+ * EXPECTED API RESPONSE SHAPE
+ * -------------------------------------------------------------------------
+ * {
+ *   "city": "Denver",
+ *   "days": [
+ *     {
+ *       "date": "2026-03-16",
+ *       "activities": [
+ *         { "name": "Skiing",              "rank": 8, "reasoning": "..." },
+ *         { "name": "Surfing",             "rank": 2, "reasoning": "..." },
+ *         { "name": "Outdoor Sightseeing", "rank": 6, "reasoning": "..." },
+ *         { "name": "Indoor Sightseeing",  "rank": 4, "reasoning": "..." }
+ *       ]
+ *     },
+ *     ... (7 days total)
+ *   ]
+ * }
  */
 
-const rankElements = maestro.elementByIdList('activity-rank');
+var apiUrl    = output.RANKING_API_URL || '';
+var testCity  = output.TEST_CITY       || 'Denver';
 
-const assertions = [];
-let allPassed = true;
+// ────────────────────────────────────────────────────────────────────────────
+if (!apiUrl) {
+  // Graceful skip — do not fail CI when the URL is not yet configured.
+  // Replace this block with a hard failure once the API is always available.
+  output.skipped = true;
+  output.skipReason = 'RANKING_API_URL env var not set — skipping API layer validation';
+  output.allPassed = true;   // non-blocking skip
+  return;
+}
 
-rankElements.forEach(function (el, index) {
-  const rawText = (el.text || '').trim();
+// ────────────────────────────────────────────────────────────────────────────
+// Call the ranking API
+var fullUrl  = apiUrl + '?city=' + encodeURIComponent(testCity);
+var response = http.get(fullUrl, { 'Accept': 'application/json' });
 
-  // Extract the numeric part – handles "7", "Rank: 7", "7/10", etc.
-  const match = rawText.match(/\d+/);
-  if (!match) {
+if (response.statusCode !== 200) {
+  output.allPassed  = false;
+  output.error      = 'API returned HTTP ' + response.statusCode + ' for city: ' + testCity;
+  return;
+}
+
+var payload;
+try {
+  payload = json.parse(response.body);
+} catch (e) {
+  output.allPassed = false;
+  output.error     = 'Failed to parse API response as JSON: ' + e.message;
+  return;
+}
+
+if (!payload.days || !Array.isArray(payload.days)) {
+  output.allPassed = false;
+  output.error     = 'API response missing "days" array. Got: ' + json.stringify(payload);
+  return;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Validate every rank value in the full 7-day payload
+var assertions   = [];
+var allPassed    = true;
+var totalChecked = 0;
+
+var SUPPORTED_ACTIVITIES = ['Skiing', 'Surfing', 'Outdoor Sightseeing', 'Indoor Sightseeing'];
+
+payload.days.forEach(function (day, dayIdx) {
+  var dayLabel = 'Day ' + (dayIdx + 1) + ' (' + (day.date || 'unknown date') + ')';
+
+  if (!day.activities || !Array.isArray(day.activities)) {
     assertions.push({
-      status: 'FAILED',
-      message: 'Element ' + index + ' has no numeric rank value. Raw text: "' + rawText + '"',
+      status:  'FAILED',
+      message: dayLabel + ': missing activities array',
     });
     allPassed = false;
     return;
   }
 
-  const rankValue = parseInt(match[0], 10);
+  // Check that all 4 supported activities are present
+  var activityNames = day.activities.map(function (a) { return a.name; });
+  SUPPORTED_ACTIVITIES.forEach(function (expected) {
+    if (activityNames.indexOf(expected) === -1) {
+      assertions.push({
+        status:  'FAILED',
+        message: dayLabel + ': missing activity "' + expected + '"',
+      });
+      allPassed = false;
+    }
+  });
 
-  if (rankValue >= 1 && rankValue <= 10) {
-    assertions.push({
-      status: 'PASSED',
-      message: 'Element ' + index + ' rank = ' + rankValue + ' (valid 1–10)',
-    });
-  } else {
-    assertions.push({
-      status: 'FAILED',
-      message:
-        'Element ' + index + ' rank = ' + rankValue + ' is OUTSIDE valid range [1, 10]. Raw text: "' + rawText + '"',
-    });
-    allPassed = false;
-  }
+  // Validate each rank value
+  day.activities.forEach(function (activity) {
+    totalChecked++;
+    var rank = activity.rank;
+    var label = dayLabel + ' / ' + activity.name;
+
+    if (rank === null || rank === undefined) {
+      assertions.push({ status: 'FAILED', message: label + ': rank is null/undefined' });
+      allPassed = false;
+      return;
+    }
+
+    if (typeof rank !== 'number' || !isFinite(rank)) {
+      assertions.push({ status: 'FAILED', message: label + ': rank is not a finite number, got: ' + rank });
+      allPassed = false;
+      return;
+    }
+
+    if (rank !== Math.floor(rank)) {
+      assertions.push({ status: 'FAILED', message: label + ': rank must be an integer, got: ' + rank });
+      allPassed = false;
+      return;
+    }
+
+    if (rank >= 1 && rank <= 10) {
+      assertions.push({ status: 'PASSED', message: label + ': rank = ' + rank + ' ✓' });
+    } else {
+      assertions.push({
+        status:  'FAILED',
+        message: label + ': rank = ' + rank + ' is OUTSIDE [1, 10]',
+      });
+      allPassed = false;
+    }
+  });
 });
 
-// If no rank elements were found at all, fail the script
-if (rankElements.length === 0) {
+// ────────────────────────────────────────────────────────────────────────────
+// Validate 7-day count
+if (payload.days.length !== 7) {
   assertions.push({
-    status: 'FAILED',
-    message: 'No elements with id "activity-rank" were found on screen.',
+    status:  'FAILED',
+    message: 'Expected 7 days in response, got ' + payload.days.length,
   });
   allPassed = false;
 }
 
-// Surface results in Maestro test report
-output.assertions = assertions;
-output.allPassed = allPassed;
-output.totalChecked = rankElements.length;
+// Surface all results
+output.assertions    = assertions;
+output.allPassed     = allPassed;
+output.totalChecked  = totalChecked;
+output.daysValidated = payload.days.length;

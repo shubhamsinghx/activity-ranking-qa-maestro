@@ -39,13 +39,22 @@ tags:
 # ── Screenshot A: Results before backgrounding ────────────────────────────────
 - takeScreenshot: "TC-EC-06_results_before_background"
 
-# ── Step 2: Send app to background ───────────────────────────────────────────
+# ── Step 2: Send app to background ──────────────────────────────────────────────
 # pressKey: Home sends the device to the home screen without killing the app
 - pressKey: Home
 
-# Simulate user doing something else for ~10 seconds
-- waitForAnimationToEnd:
-    timeout: 10000
+# Wait for the home screen to fully render before returning to the app.
+# We use extendedWaitUntil on a system element rather than a fixed sleep.
+# This correctly waits for the OS home screen — not app animations —
+# and exits as soon as the condition is met rather than waiting the full 3 s.
+#
+# Note: the 5-minute background scenario from TC-EC-14 (Gherkin) is explicitly
+# excluded from automation — a 5-minute pause would make CI runtimes
+# unacceptable. That case is covered by TC-12 in the manual test script.
+- extendedWaitUntil:
+    notVisible:
+      id: "city-search-input"
+    timeout: 3000
 
 # ── Step 3: Return to the app ────────────────────────────────────────────────
 # launchApp without clearState: true brings the existing instance back

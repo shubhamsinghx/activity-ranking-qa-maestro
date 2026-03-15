@@ -71,5 +71,11 @@ tags:
 - assertVisible:
     id: "results-container"
 
-# ── Screenshot B: Recovered results ──────────────────────────────────────────
+# ── Screenshot B: Recovered results ─────────────────────────────────────────────
 - takeScreenshot: "TC-EC-02_results_after_retry"
+
+# ── Teardown ────────────────────────────────────────────────────────────────────
+# Critical: this test calls setAirplaneMode: true. Without teardown a failure
+# at any point before step 3 (restore network) would leave the device offline
+# for every subsequent test in the suite.
+- runFlow: "../subflows/00_teardown.yaml"

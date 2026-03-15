@@ -70,9 +70,16 @@ Feature: City Autocomplete Suggestions
     And no duplicate suggestions should appear in the list
     And no stale suggestions from intermediate keystrokes should be visible
 
-  # ─── Performance ─────────────────────────────────────────────────────────────
+  # ─── Performance ─────────────────────────────────────────────────────────────────────────────
+  # AUTOMATION STATUS: @manual-only
+  # Reason: Maestro cannot measure sub-second response latency from a YAML flow.
+  # Proper implementation requires a performance testing tool (k6, Gatling) or
+  # a runScript using Date.now() delta — which is valid but needs the ranking
+  # API URL configured.  Until that infrastructure exists this must be run
+  # manually per TC-01 in the manual test script (observe dropdown < 500 ms).
+  # Do NOT create a Maestro flow for this scenario without the timing harness.
 
-  @performance @TC-AC-PERF
+  @performance @manual-only @TC-AC-PERF
   Scenario: Autocomplete suggestions appear within 500ms of the last keystroke
     When the user taps the city search input field
     And the user types "New"

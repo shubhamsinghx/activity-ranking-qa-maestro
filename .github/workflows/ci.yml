@@ -1,0 +1,176 @@
+name: Activity Ranking – Maestro Test Suite
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# Cancel any in-flight run for the same branch/PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  JAVA_VERSION: "17"
+  API_LEVEL: 34
+  # Override in repo secrets for validate_rank_range.js to hit a real endpoint
+  RANKING_API_URL: ${{ secrets.RANKING_API_URL }}
+
+jobs:
+  # ──────────────────────────────────────────────────────────────────────────────
+  # JOB 1: Smoke gate – runs on every PR.  Fast feedback, ~10 min budget.
+  # ──────────────────────────────────────────────────────────────────────────────
+  smoke:
+    name: Smoke Tests (PR gate)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Enable KVM (hardware acceleration for emulator)
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Install Maestro CLI
+        run: |
+          curl -Ls "https://get.maestro.mobile.dev" | bash
+          echo "${HOME}/.maestro/bin" >> "$GITHUB_PATH"
+
+      - name: Start Android emulator & run smoke suite
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ env.API_LEVEL }}
+          arch: x86_64
+          profile: pixel_6
+          emulator-options: -no-window -no-boot-anim -noaudio -no-snapshot
+          disable-animations: true
+          script: |
+            mkdir -p reports/smoke
+            maestro test \
+              --include-tags smoke \
+              --format junit \
+              --output reports/smoke/results.xml \
+              flows/autocomplete flows/activity_ranking
+            EXIT=$?
+            echo "Smoke suite exit code: ${EXIT}"
+            exit ${EXIT}
+
+      - name: Upload smoke test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-report
+          path: reports/smoke/
+          retention-days: 14
+
+  # ──────────────────────────────────────────────────────────────────────────────
+  # JOB 2: Full suite – runs only on merge to main (post-review gate).
+  # ──────────────────────────────────────────────────────────────────────────────
+  full-suite:
+    name: Full Test Suite (main)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Install Maestro CLI
+        run: |
+          curl -Ls "https://get.maestro.mobile.dev" | bash
+          echo "${HOME}/.maestro/bin" >> "$GITHUB_PATH"
+
+      - name: Start Android emulator & run full suite
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ env.API_LEVEL }}
+          arch: x86_64
+          profile: pixel_6
+          emulator-options: -no-window -no-boot-anim -noaudio -no-snapshot
+          disable-animations: true
+          script: |
+            # ── Autocomplete suite ────────────────────────────────────────────
+            mkdir -p reports/autocomplete reports/ranking reports/edge
+
+            maestro test \
+              --format junit \
+              --output reports/autocomplete/results.xml \
+              flows/autocomplete
+            AC_EXIT=$?
+
+            # Reset device state between suites
+            maestro test flows/subflows/00_teardown.yaml || true
+
+            # ── Activity Ranking suite ────────────────────────────────────────
+            maestro test \
+              --format junit \
+              --output reports/ranking/results.xml \
+              flows/activity_ranking
+            AR_EXIT=$?
+
+            maestro test flows/subflows/00_teardown.yaml || true
+
+            # ── Edge Cases suite ──────────────────────────────────────────────
+            maestro test \
+              --format junit \
+              --output reports/edge/results.xml \
+              flows/edge_cases
+            EC_EXIT=$?
+
+            # ── Summary ───────────────────────────────────────────────────────
+            echo ""
+            echo "════════════════════════════════════════"
+            echo "  SUITE RESULTS"
+            echo "════════════════════════════════════════"
+            [ $AC_EXIT -eq 0 ] && echo "  Autocomplete  : PASSED" \
+                               || echo "  Autocomplete  : FAILED"
+            [ $AR_EXIT -eq 0 ] && echo "  Activity Rank : PASSED" \
+                               || echo "  Activity Rank : FAILED"
+            [ $EC_EXIT -eq 0 ] && echo "  Edge Cases    : PASSED" \
+                               || echo "  Edge Cases    : FAILED"
+            echo "════════════════════════════════════════"
+
+            # Fail the step if any suite failed
+            [ $AC_EXIT -eq 0 ] && [ $AR_EXIT -eq 0 ] && [ $EC_EXIT -eq 0 ]
+
+      - name: Upload full suite reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-suite-report
+          path: reports/
+          retention-days: 30
+
+      - name: Publish JUnit test results
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: Maestro Test Results
+          path: "reports/**/*.xml"
+          reporter: java-junit
+          fail-on-error: false

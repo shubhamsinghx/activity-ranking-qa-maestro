@@ -1,0 +1,51 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Subflow: 00_teardown
+#
+# Purpose : Resets every piece of device state that tests can modify.
+#           MUST be called at the END of any flow that changes:
+#             - Network connectivity  (setAirplaneMode)
+#             - Screen orientation    (setOrientation)
+#             - App foreground state  (pressKey: Home)
+#
+# Why this matters:
+#   Maestro runs flows sequentially by default. A test that leaves the device
+#   in Airplane Mode will cause ALL subsequent tests to fail with network
+#   errors that have nothing to do with what those tests are checking.
+#   Teardown guarantees each test starts from a known clean state regardless
+#   of whether the previous test passed, failed, or timed out.
+#
+# Usage:
+#   Add at the very END of any stateful flow (TC-EC-01, TC-EC-02, TC-EC-05):
+#
+#     - runFlow: "../subflows/00_teardown.yaml"
+#
+# Note on failure mid-test:
+#   Maestro does not support try/finally blocks. If a test fails before it
+#   reaches the teardown call, the CI pipeline's run_tests.sh calls a
+#   dedicated reset step between suites.  For local runs, re-run
+#   teardown manually:
+#
+#     maestro test flows/subflows/00_teardown.yaml
+# ─────────────────────────────────────────────────────────────────────────────
+
+appId: ${MAESTRO_APP_ID}
+---
+
+# ── 1. Restore network ────────────────────────────────────────────────────────
+# setAirplaneMode: false is safe to call even when already connected.
+# It is a no-op on devices where airplane mode was never enabled.
+- setAirplaneMode: false
+
+# Brief wait for the OS to complete the reconnection handshake
+- waitForAnimationToEnd:
+    timeout: 1500
+
+# ── 2. Restore portrait orientation ─────────────────────────────────────────
+# If a test called setOrientation: Landscape this resets it.
+# No-op when already in portrait.
+- setOrientation: Portrait
+
+# ── 3. Stop the app ──────────────────────────────────────────────────────────
+# Ensures next test starts from a genuinely cold state even if this teardown
+# runs after a test that pressed Home (app in background).
+- stopApp

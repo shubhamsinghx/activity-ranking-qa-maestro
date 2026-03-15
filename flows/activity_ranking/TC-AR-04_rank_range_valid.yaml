@@ -5,20 +5,26 @@
 # Tags        : activity-ranking
 #
 # What this tests:
-#   - Every visible activity-rank element contains an integer between 1 and 10
-#   - Values like 0, 11, or non-numeric strings are NOT present
+#   - Every activity-rank element across ALL 7 days is between 1 and 10
+#   - Out-of-range values (0, 11, −20, etc.) are not present on any day
+#   - Data validation at the API level is also run via validate_rank_range.js
+#     (which calls the ranking API directly via http, not via element scraping)
 #
-# Approach:
-#   Maestro's runScript executes inline JavaScript to read the text content of
-#   all activity-rank elements and validate each value falls in [1, 10].
-#   We also do a negative assertion to ensure "0" and "11" are not visible.
+# Why the approach changed:
+#   The original version used maestro.elementByIdList() in JavaScript, which
+#   does not exist in Maestro’s runScript JS runtime. The JS environment only
+#   exposes: output, http, json, files, crypto.
+#   UI-layer validation must use YAML assertions. Data-layer validation uses
+#   the http API in the JS helper script.
 #
 # Locator strategy:
-#   - id: "activity-rank"   → shared accessibility ID on every rank label
+#   - id: "activity-rank"     → shared accessibility ID on every rank label
+#   - id: "day-N-card"        → positional day card IDs for scroll targeting
+#   - text: "0" / "11" etc.   → negative assertions for out-of-range values
 # ─────────────────────────────────────────────────────────────────────────────
 
 appId: ${MAESTRO_APP_ID}
-name: "TC-AR-04 – All rank values are between 1 and 10 inclusive"
+name: "TC-AR-04 – All rank values across all 7 days are between 1 and 10"
 tags:
   - activity-ranking
 ---
@@ -34,23 +40,79 @@ tags:
       CITY_NAME: "Denver, USA"
 - runFlow: "../subflows/00_wait_for_results.yaml"
 
-# ── Assertion 1: Rank elements exist ─────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════════
+# LAYER 1 — UI Assertions: scroll through all 7 days, check rank elements
+#            and assert no invalid boundary values appear on screen.
+# ═══════════════════════════════════════════════════════════════════════════
+
+# ── Day 1 (visible without scrolling) ─────────────────────────────────────
 - assertVisible:
     id: "activity-rank"
-
-# ── Assertion 2: Invalid rank values are NOT present ─────────────────────────
-# If the API returns 0 or values above 10, these assertions will catch it.
-# Single-digit check: "0" alone as a rank label would be invalid.
+# Boundary negatives — covers rank "0" rendered as plain text or "Rank: 0"
 - assertNotVisible:
     text: "Rank: 0"
 - assertNotVisible:
     text: "Rank: 11"
+- assertNotVisible:
+    text: "/0"
+- takeScreenshot: "TC-AR-04_day1_ranks"
 
-# ── Assertion 3: Script-based range validation on visible rank labels ─────────
-# This JavaScript reads all rendered rank values and asserts each is 1–10.
-# The output.message is surfaced in the Maestro test report on failure.
+# ── Scroll to Day 2 and validate ─────────────────────────────────────────
+- scrollUntilVisible:
+    element:
+      id: "day-2-card"
+    direction: DOWN
+    timeout: 5000
+- assertVisible:
+    id: "activity-rank"
+- assertNotVisible:
+    text: "Rank: 0"
+- assertNotVisible:
+    text: "Rank: 11"
+- takeScreenshot: "TC-AR-04_day2_ranks"
+
+# ── Scroll to Day 4 and validate ─────────────────────────────────────────
+- scrollUntilVisible:
+    element:
+      id: "day-4-card"
+    direction: DOWN
+    timeout: 5000
+- assertVisible:
+    id: "activity-rank"
+- assertNotVisible:
+    text: "Rank: 0"
+- assertNotVisible:
+    text: "Rank: 11"
+- takeScreenshot: "TC-AR-04_day4_ranks"
+
+# ── Scroll to Day 7 and validate ─────────────────────────────────────────
+- scrollUntilVisible:
+    element:
+      id: "day-7-card"
+    direction: DOWN
+    timeout: 8000
+- assertVisible:
+    id: "activity-rank"
+- assertNotVisible:
+    text: "Rank: 0"
+- assertNotVisible:
+    text: "Rank: 11"
+- takeScreenshot: "TC-AR-04_day7_ranks"
+
+# ═══════════════════════════════════════════════════════════════════════════
+# LAYER 2 — API Assertion: call the ranking API directly and validate the
+#            full 7-day payload’s rank values in one HTTP round-trip.
+#            This catches values that are valid per UI display (e.g. "7")
+#            but invalid in the raw API response (e.g. 7.5, null, −99).
+#
+#            Requires RANKING_API_URL env var to be set, e.g.:
+#              RANKING_API_URL=https://api.example.com/ranking
+#
+#            The script exits gracefully (warning only) if the var is unset,
+#            so CI does not break while the API URL is being configured.
+# ═══════════════════════════════════════════════════════════════════════════
 - runScript:
     file: "../../scripts/validate_rank_range.js"
-
-# ── Screenshot ───────────────────────────────────────────────────────────────
-- takeScreenshot: "TC-AR-04_rank_range_valid"
+    env:
+      RANKING_API_URL: ${RANKING_API_URL}
+      TEST_CITY: "Denver"

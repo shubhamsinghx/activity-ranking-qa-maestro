@@ -49,10 +49,12 @@ tags:
 - waitForAnimationToEnd:
     timeout: 500
 
-# ── Assertion 2: Input field is populated with the selected city ─────────────
-# The field value should now read "Paris, France"
+# ── Assertion 2: Input field is populated with the selected city ─────────────────
+# Maestro assertVisible accepts either id OR text — not both simultaneously.
+# We assert the field exists by id, then assert the text value is visible.
 - assertVisible:
     id: "city-search-input"
+- assertVisible:
     text: "Paris, France"
 
 # ── Assertion 3: Autocomplete dropdown is dismissed ──────────────────────────

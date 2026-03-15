@@ -21,9 +21,11 @@ appId: ${MAESTRO_APP_ID}
 
 # Step 1 – The loading indicator may appear very briefly on fast connections.
 # We attempt to detect it but do NOT fail if it's already gone.
-- optional:
-    - assertVisible:
-        id: "loading-indicator"
+# optional: true means Maestro skips this step without failing if the element
+# is not found — correct for transient UI elements.
+- assertVisible:
+    id: "loading-indicator"
+  optional: true
 
 # Step 2 – Wait up to 15 s for the loading indicator to disappear.
 # This covers slow real-device networks and Open-Meteo API cold starts.

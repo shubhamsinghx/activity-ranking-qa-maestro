@@ -79,5 +79,11 @@ tags:
 - assertVisible:
     id: "autocomplete-dropdown"
 
-# ── Screenshot ───────────────────────────────────────────────────────────────
+# ── Screenshot ────────────────────────────────────────────────────────────────────
 - takeScreenshot: "TC-EC-01_recovered_after_reconnect"
+
+# ── Teardown ────────────────────────────────────────────────────────────────────
+# ALWAYS run teardown last — even if prior steps failed, Maestro continues
+# to this point. Resets airplane mode + orientation so the next test is not
+# poisoned by this test’s network state.
+- runFlow: "../subflows/00_teardown.yaml"

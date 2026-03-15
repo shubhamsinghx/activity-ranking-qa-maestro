@@ -30,11 +30,15 @@ tags:
     timeout: 600
 - inputText: "L"
 
-# Give the app 1.5 s to incorrectly show autocomplete (it should NOT)
+# Wait 3 s for the dropdown to appear — it should NOT.
+# 3 s matches the positive-assertion timeout used everywhere else and comfortably
+# covers debounce (typically ~200 ms) + max API latency on a slow connection.
+# 1500 ms was too short: on a slow device the API may not have responded yet,
+# causing a false pass (dropdown hadn't appeared *yet*, not that it never would).
 - extendedWaitUntil:
     notVisible:
       id: "autocomplete-dropdown"
-    timeout: 1500
+    timeout: 3000
 
 # ── Assertion 1: Dropdown is NOT visible with a single character ─────────────
 - assertNotVisible:

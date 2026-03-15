@@ -51,9 +51,24 @@ Feature: 7-Day Activity Ranking Results
     And exactly 7 day cards should be visible across the results list
     And the dates should be in sequential chronological order with no gaps
 
-  # ─── Weather–Activity Correlation ────────────────────────────────────────────
+  # ─── Weather–Activity Correlation ──────────────────────────────────────────────────────────
+  # AUTOMATION STATUS: @manual-only (all three WC scenarios)
+  #
+  # Reason: These scenarios assert that specific rank THRESHOLDS are met based
+  # on live weather data ("Given the weather shows snow and -5°C"). Because the
+  # real Open-Meteo forecast changes daily, an automated assertion like
+  # "Skiing rank >= 8" is non-deterministic — it may be true today and false
+  # tomorrow with no code change.
+  #
+  # Proper automation path (future work):
+  #   1. Build a mock weather API that returns controlled forecast payloads.
+  #   2. Point the app at the mock server during test runs.
+  #   3. Remove @manual-only and implement as Maestro flows using mock data.
+  #
+  # Until then, execute manually per TC-04 in manual_test_script.md,
+  # checking actual forecast data at test execution time.
 
-  @TC-AR-WC-01
+  @manual-only @TC-AR-WC-01
   Scenario: Clear warm weather elevates Outdoor Sightseeing and Surfing ranks
     Given the weather forecast for "Lisbon, Portugal" shows clear skies and above 20°C
     When the user searches for and selects "Lisbon, Portugal"
@@ -62,7 +77,7 @@ Feature: 7-Day Activity Ranking Results
     And "Surfing" rank should be 6 or higher on that day
     And "Indoor Sightseeing" should have a lower rank than "Outdoor Sightseeing"
 
-  @TC-AR-WC-02
+  @manual-only @TC-AR-WC-02
   Scenario: Snowy sub-zero conditions push Skiing to the top rank
     Given the weather forecast for "Innsbruck, Austria" shows heavy snow and below 0°C
     When the user searches for and selects "Innsbruck, Austria"
@@ -70,7 +85,7 @@ Feature: 7-Day Activity Ranking Results
     Then "Skiing" rank should be 8 or higher on that day
     And "Surfing" rank should be 3 or lower on that day
 
-  @TC-AR-WC-03
+  @manual-only @TC-AR-WC-03
   Scenario: Rainy conditions push Indoor Sightseeing to the top
     Given the weather forecast for "London, United Kingdom" shows rain and around 10°C
     When the user searches for and selects "London, United Kingdom"
